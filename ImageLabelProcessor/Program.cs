@@ -6,10 +6,16 @@ class Program
     static void Main()
     {
         // 루트 폴더의 경로를 지정하세요.
-        string rootFolder = @"g:\@Example\AI\@Python_AI\yolov8\test\@datasets\train_data\Drugs\@latest_drugs";
+        string rootFolder = @"C:\경로\to\dataset";
 
         // 처리할 하위 폴더 목록
         string[] subfolders = { "train", "test", "valid" };
+
+        // 삭제할지 분류할지 선택합니다. true이면 삭제, false이면 분류(복사)
+        bool isDelete = false;
+
+        // 분류(복사)할 경우, 파일을 복사할 대상 디렉토리 경로를 지정하세요.
+        string classificationFolder = @"C:\경로\to\classification";
 
         foreach (var subfolder in subfolders)
         {
@@ -27,8 +33,8 @@ class Program
                 // images와 labels 폴더가 존재하는지 확인합니다.
                 if (Directory.Exists(imagesFolder) && Directory.Exists(labelsFolder))
                 {
-                    // 라벨 파일 크기가 0인 경우 해당 라벨 파일과 이미지 파일 삭제
-                    DeleteZeroSizeLabelAndCorrespondingImages(labelsFolder, imagesFolder);
+                    // 라벨 파일 크기가 0인 경우 해당 라벨 파일과 이미지 파일 삭제 또는 분류
+                    DeleteOrClassifyZeroSizeLabelAndCorrespondingImages(labelsFolder, imagesFolder, isDelete, classificationFolder);
 
                     // 파일 이름을 매칭하여 변경 (파일명 패딩 추가)
                     RenameFilesToMatch(labelsFolder, imagesFolder);
@@ -47,8 +53,8 @@ class Program
         Console.WriteLine("모든 작업 완료.");
     }
 
-    // 라벨 파일 크기가 0인 경우 해당 라벨 파일과 이미지 파일 삭제
-    static void DeleteZeroSizeLabelAndCorrespondingImages(string labelsFolder, string imagesFolder)
+    // 라벨 파일 크기가 0인 경우 해당 라벨 파일과 이미지 파일 삭제 또는 분류
+    static void DeleteOrClassifyZeroSizeLabelAndCorrespondingImages(string labelsFolder, string imagesFolder, bool isDelete, string classificationFolder)
     {
         // labels 폴더의 모든 파일을 가져옵니다.
         string[] labelFiles = Directory.GetFiles(labelsFolder);
@@ -60,17 +66,6 @@ class Program
             // 라벨 파일의 크기가 0인지 확인합니다.
             if (labelFileInfo.Length == 0)
             {
-                // 라벨 파일을 삭제합니다.
-                try
-                {
-                    File.Delete(labelFilePath);
-                    Console.WriteLine($"라벨 파일 삭제됨: {labelFilePath}");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"라벨 파일 삭제 중 오류 발생 {labelFilePath}: {ex.Message}");
-                }
-
                 // 파일 이름에서 확장자를 제거합니다.
                 string filenameWithoutExtension = Path.GetFileNameWithoutExtension(labelFilePath);
 
@@ -78,17 +73,84 @@ class Program
                 string searchPattern = filenameWithoutExtension + ".*";
                 string[] matchingImageFiles = Directory.GetFiles(imagesFolder, searchPattern);
 
-                foreach (string imageFilePath in matchingImageFiles)
+                if (isDelete)
                 {
+                    // 라벨 파일과 이미지 파일을 삭제합니다.
                     try
                     {
-                        // 이미지 파일을 삭제합니다.
-                        File.Delete(imageFilePath);
-                        Console.WriteLine($"이미지 파일 삭제됨: {imageFilePath}");
+                        File.Delete(labelFilePath);
+                        Console.WriteLine($"라벨 파일 삭제됨: {labelFilePath}");
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"이미지 파일 삭제 중 오류 발생 {imageFilePath}: {ex.Message}");
+                        Console.WriteLine($"라벨 파일 삭제 중 오류 발생 {labelFilePath}: {ex.Message}");
+                    }
+
+                    foreach (string imageFilePath in matchingImageFiles)
+                    {
+                        try
+                        {
+                            File.Delete(imageFilePath);
+                            Console.WriteLine($"이미지 파일 삭제됨: {imageFilePath}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"이미지 파일 삭제 중 오류 발생 {imageFilePath}: {ex.Message}");
+                        }
+                    }
+                }
+                else
+                {
+                    // 라벨 파일과 이미지 파일을 지정된 디렉토리로 복사합니다.
+                    foreach (string imageFilePath in matchingImageFiles)
+                    {
+                        try
+                        {
+                            string destImagePath = Path.Combine(classificationFolder, "images", Path.GetFileName(imageFilePath));
+                            Directory.CreateDirectory(Path.GetDirectoryName(destImagePath));
+                            File.Copy(imageFilePath, destImagePath, true);
+                            Console.WriteLine($"이미지 파일 분류됨: {imageFilePath} -> {destImagePath}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"이미지 파일 복사 중 오류 발생 {imageFilePath}: {ex.Message}");
+                        }
+                    }
+
+                    try
+                    {
+                        string destLabelPath = Path.Combine(classificationFolder, "labels", Path.GetFileName(labelFilePath));
+                        Directory.CreateDirectory(Path.GetDirectoryName(destLabelPath));
+                        File.Copy(labelFilePath, destLabelPath, true);
+                        Console.WriteLine($"라벨 파일 분류됨: {labelFilePath} -> {destLabelPath}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"라벨 파일 복사 중 오류 발생 {labelFilePath}: {ex.Message}");
+                    }
+
+                    // 원본 파일을 삭제합니다.
+                    try
+                    {
+                        File.Delete(labelFilePath);
+                        Console.WriteLine($"원본 라벨 파일 삭제됨: {labelFilePath}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"원본 라벨 파일 삭제 중 오류 발생 {labelFilePath}: {ex.Message}");
+                    }
+
+                    foreach (string imageFilePath in matchingImageFiles)
+                    {
+                        try
+                        {
+                            File.Delete(imageFilePath);
+                            Console.WriteLine($"원본 이미지 파일 삭제됨: {imageFilePath}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"원본 이미지 파일 삭제 중 오류 발생 {imageFilePath}: {ex.Message}");
+                        }
                     }
                 }
             }
