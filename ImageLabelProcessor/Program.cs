@@ -1,21 +1,22 @@
 ﻿using System;
 using System.IO;
+using System.Security.Cryptography;
 
 class Program
 {
     static void Main()
     {
         // 루트 폴더의 경로를 지정하세요.
-        string rootFolder = @"C:\경로\to\dataset";
+        string rootFolder = @"g:\@Example\AI\@Python_AI\yolov8\test\@datasets\train_data\Drugs\@latest_drugs_processing2";
 
         // 처리할 하위 폴더 목록
         string[] subfolders = { "train", "test", "valid" };
 
         // 삭제할지 분류할지 선택합니다. true이면 삭제, false이면 분류(복사)
-        bool isDelete = false;
+        bool isDelete = true;
 
         // 분류(복사)할 경우, 파일을 복사할 대상 디렉토리 경로를 지정하세요.
-        string classificationFolder = @"C:\경로\to\classification";
+        string classificationFolder = @"g:\@Example\AI\@Python_AI\yolov8\test\@datasets\train_data\Drugs\@latest_drugs - 복사본\classfications";
 
         foreach (var subfolder in subfolders)
         {
@@ -38,6 +39,9 @@ class Program
 
                     // 파일 이름을 매칭하여 변경 (파일명 패딩 추가)
                     RenameFilesToMatch(labelsFolder, imagesFolder);
+
+                    //중복 이미지 및 라벨 제거
+                    RemoveDuplicateImagesAndLabels(labelsFolder, imagesFolder);
                 }
                 else
                 {
@@ -203,6 +207,96 @@ class Program
             else
             {
                 Console.WriteLine($"매칭되는 라벨 파일이 없습니다: {imageFilePath}");
+            }
+        }
+    }
+    // 이미지와 라벨 파일의 중복을 찾아 제거하는 함수
+    static void RemoveDuplicateImagesAndLabels(string labelsFolder, string imagesFolder)
+    {
+        // 이미지 파일의 해시값을 저장할 딕셔너리 (해시값, 파일 경로)
+        Dictionary<string, string> hashDictionary = new Dictionary<string, string>();
+
+        // 삭제할 이미지 및 라벨 파일 경로를 저장할 리스트
+        List<string> duplicateImageFiles = new List<string>();
+        List<string> duplicateLabelFiles = new List<string>();
+
+        // 이미지 폴더의 모든 파일을 가져옵니다.
+        string[] imageFiles = Directory.GetFiles(imagesFolder);
+
+        foreach (string imageFilePath in imageFiles)
+        {
+            try
+            {
+                // 이미지 파일의 MD5 해시값을 계산합니다.
+                string fileHash = GetFileHash(imageFilePath);
+
+                if (hashDictionary.ContainsKey(fileHash))
+                {
+                    // 중복된 파일로 판단하여 리스트에 추가합니다.
+                    duplicateImageFiles.Add(imageFilePath);
+
+                    Console.WriteLine($"중복 이미지 발견: {imageFilePath}");
+
+                    // 해당 이미지와 매칭되는 라벨 파일을 찾습니다.
+                    string imageFileNameWithoutExtension = Path.GetFileNameWithoutExtension(imageFilePath);
+                    string[] matchingLabelFiles = Directory.GetFiles(labelsFolder, imageFileNameWithoutExtension + ".*");
+
+                    foreach (string labelFilePath in matchingLabelFiles)
+                    {
+                        duplicateLabelFiles.Add(labelFilePath);
+                    }
+                }
+                else
+                {
+                    // 해시값을 딕셔너리에 추가합니다.
+                    hashDictionary.Add(fileHash, imageFilePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"해시 계산 중 오류 발생 {imageFilePath}: {ex.Message}");
+            }
+        }
+
+        // 중복된 이미지 파일을 삭제합니다.
+        foreach (string duplicateImage in duplicateImageFiles)
+        {
+            try
+            {
+                File.Delete(duplicateImage);
+                Console.WriteLine($"중복 이미지 삭제됨: {duplicateImage}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"이미지 파일 삭제 중 오류 발생 {duplicateImage}: {ex.Message}");
+            }
+        }
+
+        // 중복된 라벨 파일을 삭제합니다.
+        foreach (string duplicateLabel in duplicateLabelFiles)
+        {
+            try
+            {
+                File.Delete(duplicateLabel);
+                Console.WriteLine($"중복 라벨 삭제됨: {duplicateLabel}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"라벨 파일 삭제 중 오류 발생 {duplicateLabel}: {ex.Message}");
+            }
+        }
+    }
+
+    // 파일의 MD5 해시값을 계산하는 함수
+    static string GetFileHash(string filePath)
+    {
+        using (var md5 = MD5.Create())
+        {
+            using (var stream = File.OpenRead(filePath))
+            {
+                var hashBytes = md5.ComputeHash(stream);
+                // 해시값을 문자열로 변환합니다.
+                return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
             }
         }
     }
