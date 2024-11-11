@@ -13,7 +13,7 @@ class Program
     static void Main()
     {
         // 루트 폴더의 경로를 지정하세요.
-        string rootFolder = @"g:\@Example\AI\@Python_AI\yolov8\test\@datasets\train_data\Nude\@@@Dataset\nude\other\broken.v18i.yolov11";
+        string rootFolder = @"g:\@Example\AI\@Python_AI\yolov8\test\@datasets\train_data\Nude\@@@Dataset\nude\total_nude_content";
 
         // 처리할 하위 폴더 목록
         string[] subfolders = { "train", "test", "valid" };
@@ -25,7 +25,7 @@ class Program
         bool IsClassIdPadding = false;        
         // 분류(복사)할 경우, 파일을 복사할 대상 디렉토리 경로를 지정하세요.
         string classificationFolder = @"g:\@Example\AI\@Python_AI\yolov8\test\@datasets\train_data\Drugs\@latest_drugs - 복사본\classfications";
-        
+
         foreach (var subfolder in subfolders)
         {
             string subfolderPath = Path.Combine(rootFolder, subfolder);
@@ -58,8 +58,8 @@ class Program
                 Console.WriteLine($"폴더가 존재하지 않습니다: {subfolderPath}");
             }
         }
-   
-        //AdjustDatasetSplits(rootFolder);
+
+        AdjustDatasetSplits(rootFolder);
 
         foreach (var subfolder in subfolders)
         {
@@ -410,11 +410,11 @@ class Program
                 string newLabelFilePath = Path.Combine(labelsFolder, newFileName + labelExtension);
 
                 try
-                {
+                {                                      
                     // 이미지 파일명 변경
                     File.Move(imageFilePath, newImageFilePath);
                     Console.WriteLine($"이미지 파일명 변경: {imageFilePath} -> {newImageFilePath}");
-
+                    
                     // 라벨 파일명 변경
                     File.Move(labelFilePath, newLabelFilePath);
                     Console.WriteLine($"라벨 파일명 변경: {labelFilePath} -> {newLabelFilePath}");
