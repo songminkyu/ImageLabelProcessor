@@ -12,8 +12,8 @@ class Program
 {
     static void Main()
     {
-        // 루트 폴더의 경로를 지정하세요.
-        string rootFolder = @"g:\@Example\AI\@Python_AI\yolov8\test\@datasets\train_data\Nude\@@@Dataset\nude\total_nude_content";
+        // Dataset 루트 폴더의 경로를 지정하세요.
+        string rootFolder = @"<your root path>";
 
         // 처리할 하위 폴더 목록
         string[] subfolders = { "train", "test", "valid" };
