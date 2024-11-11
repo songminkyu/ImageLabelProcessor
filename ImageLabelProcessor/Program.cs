@@ -2,19 +2,27 @@
 using System.IO;
 using System.Security.Cryptography;
 
+
+public class DeletedFileInfo
+{
+    public string imageFilePath {  get; set; }
+    public string annotationFile { get; set; }
+}
 class Program
 {
     static void Main()
     {
         // 루트 폴더의 경로를 지정하세요.
-        string rootFolder = @"g:\@Example\AI\@Python_AI\yolov8\test\@datasets\train_data\Nude\@@@Dataset\nude\total_nude_content";
+        string rootFolder = @"g:\@Example\AI\@Python_AI\yolov8\test\@datasets\train_data\Nude\@@@Dataset\nude\other\broken.v18i.yolov11";
 
         // 처리할 하위 폴더 목록
         string[] subfolders = { "train", "test", "valid" };
-
+        
+        
         // 삭제할지 분류할지 선택합니다. true이면 삭제, false이면 분류(복사)
         bool isDelete = true;
-            
+        bool IsclassDelete = false;
+        bool IsClassIdPadding = false;        
         // 분류(복사)할 경우, 파일을 복사할 대상 디렉토리 경로를 지정하세요.
         string classificationFolder = @"g:\@Example\AI\@Python_AI\yolov8\test\@datasets\train_data\Drugs\@latest_drugs - 복사본\classfications";
         
@@ -51,7 +59,7 @@ class Program
             }
         }
    
-        AdjustDatasetSplits(rootFolder);
+        //AdjustDatasetSplits(rootFolder);
 
         foreach (var subfolder in subfolders)
         {
@@ -81,7 +89,31 @@ class Program
             {
                 Console.WriteLine($"폴더가 존재하지 않습니다: {subfolderPath}");
             }
+
+            Console.WriteLine($"segment 제거 시작");
+
+            var deletedsegmentList = FindInstanceSegments(subfolderPath);
+
+            foreach(var segment in deletedsegmentList)
+            {
+                Console.WriteLine($"segment 제거 : {segment.imageFilePath}");
+                File.Delete(segment.imageFilePath);
+                File.Delete(segment.annotationFile);
+            }           
         }
+
+        if(IsclassDelete == true)
+        {
+            //제거할 클래스 id를 통해서 이미지 및 라벨 제거
+            RemoveLabelsAndImages(rootFolder, subfolders, new int[] { 0, 1, 2 });
+        }
+        
+        if(IsClassIdPadding == true)
+        {
+            //특정 클래스 아이디를 변경
+            UpdateClassId(rootFolder, subfolders, new int[] { 0, 1, 2, 3, 4, 5, 6 }, 0);
+        }
+        
 
         Console.WriteLine("모든 작업 완료.");
     }
@@ -475,6 +507,7 @@ class Program
                 Console.WriteLine($"라벨 파일 삭제 중 오류 발생 {duplicateLabel}: {ex.Message}");
             }
         }
+ 
     }
 
     // 파일의 MD5 해시값을 계산하는 함수
@@ -492,10 +525,10 @@ class Program
     }
 
 
-    static List<string> FindInstanceSegments(string rootFolder)
+    static List<DeletedFileInfo> FindInstanceSegments(string rootFolder)
     {
         // List to store image filenames with bounding box annotations
-        List<string> boundingBoxImageFilenames = new List<string>();
+        List<DeletedFileInfo> InstanceSegmentFilenames = new();
 
         // Set the labels folder path
         string labelsFolderPath = Path.Combine(rootFolder, "labels");
@@ -521,7 +554,7 @@ class Program
 
                         if (File.Exists(imagePath))
                         {
-                            boundingBoxImageFilenames.Add(imagePath);
+                            InstanceSegmentFilenames.Add(new DeletedFileInfo() { annotationFile = annotationFile, imageFilePath = imagePath});
                         }
                         break; // Stop further checks for this file as it's already added
                     }                
@@ -533,12 +566,12 @@ class Program
             Console.WriteLine($"labels 폴더가 존재하지 않습니다: {labelsFolderPath}");
         }
 
-        return boundingBoxImageFilenames;
+        return InstanceSegmentFilenames;
     }
-    static List<string> FindBoundingBoxes(string rootFolder)
+    static List<DeletedFileInfo> FindBoundingBoxes(string rootFolder)
     {
         // List to store image filenames with bounding box annotations
-        List<string> boundingBoxImageFilenames = new List<string>();
+        List<DeletedFileInfo> boundingBoxImageFilenames = new();
 
         // Set the labels folder path
         string labelsFolderPath = Path.Combine(rootFolder, "labels");
@@ -564,7 +597,7 @@ class Program
 
                         if (File.Exists(imagePath))
                         {
-                            boundingBoxImageFilenames.Add(imagePath);
+                            boundingBoxImageFilenames.Add(new DeletedFileInfo() { annotationFile = annotationFile, imageFilePath = imagePath });
                         }
                         break; // Stop further checks for this file as it's already added
                     }
@@ -577,5 +610,83 @@ class Program
         }
 
         return boundingBoxImageFilenames;
+    }
+
+    // 클래스 ID가 특정 값인 라벨과 이미지를 제거하는 함수
+    static void RemoveLabelsAndImages(string rootFolder, string[] subfolders, int[] classIdsToRemove)
+    {
+        foreach (var subfolder in subfolders)
+        {
+            string labelsFolder = Path.Combine(rootFolder, subfolder, "labels");
+            string imagesFolder = Path.Combine(rootFolder, subfolder, "images");
+
+            if (Directory.Exists(labelsFolder))
+            {
+                foreach (var labelFilePath in Directory.GetFiles(labelsFolder, "*.txt"))
+                {
+                    var lines = File.ReadAllLines(labelFilePath);
+                    bool shouldDeleteFile = false;
+
+                    foreach (var line in lines)
+                    {
+                        string[] elements = line.Trim().Split();
+                        if (elements.Length > 0 && int.TryParse(elements[0], out int classId) && classIdsToRemove.Contains(classId))
+                        {
+                            shouldDeleteFile = true;
+                            break;
+                        }
+                    }
+
+                    if (shouldDeleteFile)
+                    {
+                        // 라벨 파일과 해당하는 이미지 파일 삭제
+                        File.Delete(labelFilePath);
+                        Console.WriteLine($"라벨 파일 삭제됨: {labelFilePath}");
+
+                        string imageFilePath = Path.Combine(imagesFolder, Path.GetFileNameWithoutExtension(labelFilePath) + ".jpg");
+                        if (File.Exists(imageFilePath))
+                        {
+                            File.Delete(imageFilePath);                            
+                            Console.WriteLine($"이미지 파일 삭제됨: {imageFilePath}");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 특정 클래스 ID를 다른 값으로 변경하는 함수
+    static void UpdateClassId(string rootFolder, string[] subfolders, int[] targetClassIds, int newClassId)
+    {
+        foreach (var subfolder in subfolders)
+        {
+            string labelsFolder = Path.Combine(rootFolder, subfolder, "labels");
+
+            if (Directory.Exists(labelsFolder))
+            {
+                foreach (var labelFilePath in Directory.GetFiles(labelsFolder, "*.txt"))
+                {
+                    var lines = File.ReadAllLines(labelFilePath);
+                    bool hasChanges = false;
+
+                    for (int i = 0; i < lines.Length; i++)
+                    {
+                        string[] elements = lines[i].Trim().Split();
+                        if (elements.Length > 0 && int.TryParse(elements[0], out int classId) && targetClassIds.Contains(classId))
+                        {
+                            elements[0] = newClassId.ToString(); // 클래스 ID를 변경
+                            lines[i] = string.Join(" ", elements);
+                            hasChanges = true;
+                        }
+                    }
+
+                    if (hasChanges)
+                    {
+                        File.WriteAllLines(labelFilePath, lines);
+                        Console.WriteLine($"클래스 ID 변경됨: {labelFilePath}");
+                    }
+                }
+            }
+        }
     }
 }
