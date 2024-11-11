@@ -7,7 +7,7 @@ class Program
     static void Main()
     {
         // 루트 폴더의 경로를 지정하세요.
-        string rootFolder = @"g:\@Example\AI\@Python_AI\yolov8\test\@datasets\train_data\Drugs\@latest_drugs - 복사본 (2)";
+        string rootFolder = @"g:\@Example\AI\@Python_AI\yolov8\test\@datasets\train_data\Nude\@@@Dataset\nude\total_nude_content";
 
         // 처리할 하위 폴더 목록
         string[] subfolders = { "train", "test", "valid" };
@@ -17,7 +17,7 @@ class Program
             
         // 분류(복사)할 경우, 파일을 복사할 대상 디렉토리 경로를 지정하세요.
         string classificationFolder = @"g:\@Example\AI\@Python_AI\yolov8\test\@datasets\train_data\Drugs\@latest_drugs - 복사본\classfications";
-
+        
         foreach (var subfolder in subfolders)
         {
             string subfolderPath = Path.Combine(rootFolder, subfolder);
@@ -36,9 +36,9 @@ class Program
                 {
                     // 라벨 파일 크기가 0인 경우 해당 라벨 파일과 이미지 파일 삭제 또는 분류
                     DeleteOrClassifyZeroSizeLabelAndCorrespondingImages(labelsFolder, imagesFolder, isDelete, classificationFolder);
-                    
+
                     //중복 이미지 및 라벨 제거
-                    RemoveDuplicateImagesAndLabels(labelsFolder, imagesFolder);                
+                    RemoveDuplicateImagesAndLabels(labelsFolder, imagesFolder);
                 }
                 else
                 {
@@ -50,7 +50,7 @@ class Program
                 Console.WriteLine($"폴더가 존재하지 않습니다: {subfolderPath}");
             }
         }
-
+   
         AdjustDatasetSplits(rootFolder);
 
         foreach (var subfolder in subfolders)
@@ -489,5 +489,93 @@ class Program
                 return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
             }
         }
+    }
+
+
+    static List<string> FindInstanceSegments(string rootFolder)
+    {
+        // List to store image filenames with bounding box annotations
+        List<string> boundingBoxImageFilenames = new List<string>();
+
+        // Set the labels folder path
+        string labelsFolderPath = Path.Combine(rootFolder, "labels");
+
+        if (Directory.Exists(labelsFolderPath))
+        {
+            // Loop over all annotation files in the labels folder
+            foreach (var annotationFile in Directory.GetFiles(labelsFolderPath, "*.txt"))
+            {
+                var lines = File.ReadAllLines(annotationFile);
+
+                // Check each line in the annotation file
+                foreach (var line in lines)
+                {
+                    // Split the line to get the elements
+                    var elements = line.Trim().Split();
+
+                    // YOLOv8 object detection (bounding box) should have 5 elements: class_id, x_center, y_center, width, height
+                    if (elements.Length > 5)
+                    {
+                        string imageFilename = Path.GetFileNameWithoutExtension(annotationFile) + ".jpg"; // Assuming image is .jpg
+                        string imagePath = Path.Combine(rootFolder, "images", imageFilename);
+
+                        if (File.Exists(imagePath))
+                        {
+                            boundingBoxImageFilenames.Add(imagePath);
+                        }
+                        break; // Stop further checks for this file as it's already added
+                    }                
+                }
+            }
+        }
+        else
+        {
+            Console.WriteLine($"labels 폴더가 존재하지 않습니다: {labelsFolderPath}");
+        }
+
+        return boundingBoxImageFilenames;
+    }
+    static List<string> FindBoundingBoxes(string rootFolder)
+    {
+        // List to store image filenames with bounding box annotations
+        List<string> boundingBoxImageFilenames = new List<string>();
+
+        // Set the labels folder path
+        string labelsFolderPath = Path.Combine(rootFolder, "labels");
+
+        if (Directory.Exists(labelsFolderPath))
+        {
+            // Loop over all annotation files in the labels folder
+            foreach (var annotationFile in Directory.GetFiles(labelsFolderPath, "*.txt"))
+            {
+                var lines = File.ReadAllLines(annotationFile);
+
+                // Check each line in the annotation file
+                foreach (var line in lines)
+                {
+                    // Split the line to get the elements
+                    var elements = line.Trim().Split();
+
+                    // YOLOv8 object detection (bounding box) should have 5 elements: class_id, x_center, y_center, width, height
+                    if (elements.Length == 5)
+                    {
+                        string imageFilename = Path.GetFileNameWithoutExtension(annotationFile) + ".jpg"; // Assuming image is .jpg
+                        string imagePath = Path.Combine(rootFolder, "images", imageFilename);
+
+                        if (File.Exists(imagePath))
+                        {
+                            boundingBoxImageFilenames.Add(imagePath);
+                        }
+                        break; // Stop further checks for this file as it's already added
+                    }
+                }
+            }
+        }
+        else
+        {
+            Console.WriteLine($"labels 폴더가 존재하지 않습니다: {labelsFolderPath}");
+        }
+
+        return boundingBoxImageFilenames;
     }
 }
