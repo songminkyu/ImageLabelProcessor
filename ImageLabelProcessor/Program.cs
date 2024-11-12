@@ -88,21 +88,25 @@ class Program
             else
             {
                 Console.WriteLine($"폴더가 존재하지 않습니다: {subfolderPath}");
-            }
+            }                 
+        }
 
-            Console.WriteLine($"segment 제거 시작");
+        Console.WriteLine($"segment 제거 시작");
 
+        foreach (var subfolder in subfolders)
+        {
+            string subfolderPath = Path.Combine(rootFolder, subfolder);                   
             var deletedsegmentList = FindInstanceSegments(subfolderPath);
 
-            foreach(var segment in deletedsegmentList)
+            foreach (var segment in deletedsegmentList)
             {
                 Console.WriteLine($"segment 제거 : {segment.imageFilePath}");
                 File.Delete(segment.imageFilePath);
                 File.Delete(segment.annotationFile);
-            }           
+            }
         }
 
-        if(IsclassDelete == true)
+        if (IsclassDelete == true)
         {
             //제거할 클래스 id를 통해서 이미지 및 라벨 제거
             RemoveLabelsAndImages(rootFolder, subfolders, new int[] { 0, 1, 2 });
