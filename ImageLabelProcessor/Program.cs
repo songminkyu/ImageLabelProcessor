@@ -13,7 +13,7 @@ class Program
     static void Main()
     {
         // Dataset 루트 폴더의 경로를 지정하세요.
-        string rootFolder = @"<your root path>";
+        string rootFolder = @"g:\@Example\AI\@Python_AI\yolov8\test\@datasets\train_data\Nude\@@@Dataset\nude\total_nude_content";
 
         // 처리할 하위 폴더 목록
         string[] subfolders = { "train", "test", "valid" };
@@ -58,7 +58,7 @@ class Program
                 Console.WriteLine($"폴더가 존재하지 않습니다: {subfolderPath}");
             }
         }
-
+        
         AdjustDatasetSplits(rootFolder);
 
         foreach (var subfolder in subfolders)
@@ -90,7 +90,7 @@ class Program
                 Console.WriteLine($"폴더가 존재하지 않습니다: {subfolderPath}");
             }                 
         }
-
+                
         Console.WriteLine($"segment 제거 시작");
 
         foreach (var subfolder in subfolders)
@@ -434,7 +434,24 @@ class Program
     {
         // images 폴더의 모든 이미지 파일을 가져옵니다.
         var imageFiles = Directory.GetFiles(imagesFolder);
-        int index = 1;
+
+        // 이미지 파일 중 가장 높은 숫자 인덱스를 찾습니다.
+        int maxIndex = 0;
+        foreach (var imageFilePath in imageFiles)
+        {
+            string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(imageFilePath);
+
+            // 파일명이 숫자로 구성된 경우에만 인덱스를 비교합니다.
+            if (int.TryParse(fileNameWithoutExtension, out int index))
+            {
+                if (index > maxIndex)
+                {
+                    maxIndex = index;
+                }
+            }
+        }
+
+        int newIndex = maxIndex + 1; // 다음 인덱스를 시작점으로 설정
 
         foreach (var imageFilePath in imageFiles)
         {
@@ -449,18 +466,18 @@ class Program
                 string labelFilePath = matchingLabelFiles[0]; // 매칭되는 첫 번째 라벨 파일 사용
                 string labelExtension = Path.GetExtension(labelFilePath);
 
-                // 새로운 파일명 생성 (예: 00001.jpg, 00001.txt)
-                string newFileName = index.ToString("D5"); // D5는 5자리로 패딩
+                // 새로운 파일명 생성 (예: 09410.jpg, 09410.txt)
+                string newFileName = newIndex.ToString("D5"); // D5는 5자리로 패딩
 
                 string newImageFilePath = Path.Combine(imagesFolder, newFileName + imageExtension);
                 string newLabelFilePath = Path.Combine(labelsFolder, newFileName + labelExtension);
 
                 try
-                {                                      
+                {
                     // 이미지 파일명 변경
                     File.Move(imageFilePath, newImageFilePath);
                     Console.WriteLine($"이미지 파일명 변경: {imageFilePath} -> {newImageFilePath}");
-                    
+
                     // 라벨 파일명 변경
                     File.Move(labelFilePath, newLabelFilePath);
                     Console.WriteLine($"라벨 파일명 변경: {labelFilePath} -> {newLabelFilePath}");
@@ -470,7 +487,7 @@ class Program
                     Console.WriteLine($"파일명 변경 중 오류 발생: {ex.Message}");
                 }
 
-                index++;
+                newIndex++; // 다음 인덱스로 증가
             }
             else
             {
@@ -478,6 +495,7 @@ class Program
             }
         }
     }
+
     // 이미지와 라벨 파일의 중복을 찾아 제거하는 함수
     static void RemoveDuplicateImagesAndLabels(string labelsFolder, string imagesFolder)
     {
