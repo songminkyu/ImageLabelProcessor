@@ -22,7 +22,8 @@ class Program
         // 삭제할지 분류할지 선택합니다. true이면 삭제, false이면 분류(복사)
         bool isDelete = true;
         bool IsclassDelete = false;
-        bool IsClassIdPadding = false;        
+        bool IsClassIdPadding = false;
+        bool IsSetSplitRatios = false;
         // 분류(복사)할 경우, 파일을 복사할 대상 디렉토리 경로를 지정하세요.
         string classificationFolder = @"g:\@Example\AI\@Python_AI\yolov8\test\@datasets\train_data\Drugs\@latest_drugs - 복사본\classfications";
 
@@ -59,8 +60,11 @@ class Program
             }
         }
         
-        AdjustDatasetSplits(rootFolder);
-
+        if(IsSetSplitRatios == true)
+        {
+            AdjustDatasetSplits(rootFolder);
+        }
+        
         foreach (var subfolder in subfolders)
         {
             string subfolderPath = Path.Combine(rootFolder, subfolder);
@@ -90,7 +94,7 @@ class Program
                 Console.WriteLine($"폴더가 존재하지 않습니다: {subfolderPath}");
             }                 
         }
-                
+        
         Console.WriteLine($"segment 제거 시작");
 
         foreach (var subfolder in subfolders)
@@ -434,24 +438,7 @@ class Program
     {
         // images 폴더의 모든 이미지 파일을 가져옵니다.
         var imageFiles = Directory.GetFiles(imagesFolder);
-
-        // 이미지 파일 중 가장 높은 숫자 인덱스를 찾습니다.
-        int maxIndex = 0;
-        foreach (var imageFilePath in imageFiles)
-        {
-            string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(imageFilePath);
-
-            // 파일명이 숫자로 구성된 경우에만 인덱스를 비교합니다.
-            if (int.TryParse(fileNameWithoutExtension, out int index))
-            {
-                if (index > maxIndex)
-                {
-                    maxIndex = index;
-                }
-            }
-        }
-
-        int newIndex = maxIndex + 1; // 다음 인덱스를 시작점으로 설정
+        int index = 1;
 
         foreach (var imageFilePath in imageFiles)
         {
@@ -466,11 +453,19 @@ class Program
                 string labelFilePath = matchingLabelFiles[0]; // 매칭되는 첫 번째 라벨 파일 사용
                 string labelExtension = Path.GetExtension(labelFilePath);
 
-                // 새로운 파일명 생성 (예: 09410.jpg, 09410.txt)
-                string newFileName = newIndex.ToString("D5"); // D5는 5자리로 패딩
+                // 새로운 파일명 생성 (예: 00001.jpg, 00001.txt)
+                string newFileName;
+                string newImageFilePath;
+                string newLabelFilePath;
 
-                string newImageFilePath = Path.Combine(imagesFolder, newFileName + imageExtension);
-                string newLabelFilePath = Path.Combine(labelsFolder, newFileName + labelExtension);
+                do
+                {
+                    newFileName = index.ToString("D5"); // D5는 5자리로 패딩
+                    newImageFilePath = Path.Combine(imagesFolder, newFileName + imageExtension);
+                    newLabelFilePath = Path.Combine(labelsFolder, newFileName + labelExtension);
+                    index++;
+                }
+                while (File.Exists(newImageFilePath) || File.Exists(newLabelFilePath));
 
                 try
                 {
@@ -486,15 +481,13 @@ class Program
                 {
                     Console.WriteLine($"파일명 변경 중 오류 발생: {ex.Message}");
                 }
-
-                newIndex++; // 다음 인덱스로 증가
             }
             else
             {
                 Console.WriteLine($"매칭되는 라벨 파일이 없습니다: {imageFilePath}");
             }
         }
-    }
+    }   
 
     // 이미지와 라벨 파일의 중복을 찾아 제거하는 함수
     static void RemoveDuplicateImagesAndLabels(string labelsFolder, string imagesFolder)
@@ -513,7 +506,7 @@ class Program
         {
             try
             {
-                // 이미지 파일의 MD5 해시값을 계산합니다.
+                // 이미지 파일의 해시값을 계산합니다.
                 string fileHash = GetFileHash(imageFilePath);
 
                 if (hashDictionary.ContainsKey(fileHash))
@@ -521,7 +514,9 @@ class Program
                     // 중복된 파일로 판단하여 리스트에 추가합니다.
                     duplicateImageFiles.Add(imageFilePath);
 
-                    Console.WriteLine($"중복 이미지 발견: {imageFilePath}");
+                    // 원본 파일 경로를 가져옵니다.
+                    string originalFilePath = hashDictionary[fileHash];
+                    Console.WriteLine($"중복 이미지 발견: {imageFilePath} (원본 파일: {originalFilePath})");
 
                     // 해당 이미지와 매칭되는 라벨 파일을 찾습니다.
                     string imageFileNameWithoutExtension = Path.GetFileNameWithoutExtension(imageFilePath);
@@ -571,17 +566,17 @@ class Program
                 Console.WriteLine($"라벨 파일 삭제 중 오류 발생 {duplicateLabel}: {ex.Message}");
             }
         }
- 
     }
+
 
     // 파일의 MD5 해시값을 계산하는 함수
     static string GetFileHash(string filePath)
     {
-        using (var md5 = MD5.Create())
+        using (var sha1 = SHA1.Create())
         {
             using (var stream = File.OpenRead(filePath))
             {
-                var hashBytes = md5.ComputeHash(stream);
+                var hashBytes = sha1.ComputeHash(stream);
                 // 해시값을 문자열로 변환합니다.
                 return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
             }
