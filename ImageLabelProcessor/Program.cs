@@ -113,11 +113,53 @@ class Program
             //특정 클래스 아이디를 변경
             UpdateClassId(rootFolder, subfolders, new int[] { 0, 1, 2, 3, 4, 5, 6 }, 0);
         }
-        
+
+        Console.WriteLine("라벨 및 사진 이름 매칭 안되는부분 제거 시작.");
+        //이미지 이름이랑 맞지 않는 라벨텍스트 삭제 기능
+        foreach (var subfolder in subfolders)
+        {
+            string subfolderPath = Path.Combine(rootFolder, subfolder);
+
+            if (Directory.Exists(subfolderPath))
+            {
+                string imagesFolder = Path.Combine(subfolderPath, "images");
+                string labelsFolder = Path.Combine(subfolderPath, "labels");
+
+                if (Directory.Exists(imagesFolder) && Directory.Exists(labelsFolder))
+                {
+                    // 이미지 없는 라벨 삭제
+                    DeleteOrphanedLabels(labelsFolder, imagesFolder);
+                }
+            }
+        }
 
         Console.WriteLine("모든 작업 완료.");
     }
+    static void DeleteOrphanedLabels(string labelsFolder, string imagesFolder)
+    {
+        // labels 폴더의 모든 파일을 가져옵니다.
+        string[] labelFiles = Directory.GetFiles(labelsFolder);
 
+        foreach (string labelFilePath in labelFiles)
+        {
+            string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(labelFilePath);
+            string imageFilePath = Path.Combine(imagesFolder, fileNameWithoutExtension + ".jpg");
+
+            // 이미지 파일이 없는 경우 라벨 파일을 삭제합니다.
+            if (!File.Exists(imageFilePath))
+            {
+                try
+                {
+                    File.Delete(labelFilePath);
+                    Console.WriteLine($"이미지 파일이 없어 라벨 파일 삭제됨: {labelFilePath}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"라벨 파일 삭제 중 오류 발생 {labelFilePath}: {ex.Message}");
+                }
+            }
+        }
+    }
     // 데이터셋 비율을 조정하는 함수
     static void AdjustDatasetSplits(string rootFolder)
     {
