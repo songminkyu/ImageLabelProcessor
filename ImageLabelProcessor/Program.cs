@@ -13,11 +13,11 @@ class Program
     static void Main()
     {
         // Dataset 루트 폴더의 경로를 지정하세요.
-        string rootFolder = @"g:\@Example\AI\@Python_AI\yolov8\test\@datasets\train_data\Nude\@@@Dataset\nude\total_nude_content";
+        string rootFolder = @"<your dataset root path>";
 
         // 처리할 하위 폴더 목록
-        string[] subfolders = { "train"};
-   
+        string[] subfolders = { "train", "test", "valid" };
+
         // 삭제할지 분류할지 선택합니다. true이면 삭제, false이면 분류(복사)
         bool isDelete = true;
         bool IsclassDelete = false;
