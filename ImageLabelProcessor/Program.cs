@@ -16,9 +16,8 @@ class Program
         string rootFolder = @"g:\@Example\AI\@Python_AI\yolov8\test\@datasets\train_data\Nude\@@@Dataset\nude\total_nude_content";
 
         // 처리할 하위 폴더 목록
-        string[] subfolders = { "train", "test", "valid" };
-        
-        
+        string[] subfolders = { "train"};
+   
         // 삭제할지 분류할지 선택합니다. true이면 삭제, false이면 분류(복사)
         bool isDelete = true;
         bool IsclassDelete = false;
@@ -26,7 +25,7 @@ class Program
         bool IsSetSplitRatios = false;
         // 분류(복사)할 경우, 파일을 복사할 대상 디렉토리 경로를 지정하세요.
         string classificationFolder = @"g:\@Example\AI\@Python_AI\yolov8\test\@datasets\train_data\Drugs\@latest_drugs - 복사본\classfications";
-
+    
         foreach (var subfolder in subfolders)
         {
             string subfolderPath = Path.Combine(rootFolder, subfolder);
@@ -80,9 +79,9 @@ class Program
 
                 // images와 labels 폴더가 존재하는지 확인합니다.
                 if (Directory.Exists(imagesFolder) && Directory.Exists(labelsFolder))
-                {          
+                {
                     // 파일 이름을 매칭하여 변경 (파일명 패딩 추가)
-                    RenameFilesToMatch(labelsFolder, imagesFolder);
+                    SortFilesToMatch(labelsFolder, imagesFolder);
                 }
                 else
                 {
@@ -436,7 +435,6 @@ class Program
     // 이미지 및 라벨 파일 이름을 5자리 숫자로 변경 (예: 00001.jpg, 00001.txt)
     static void RenameFilesToMatch(string labelsFolder, string imagesFolder)
     {
-        // images 폴더의 모든 이미지 파일을 가져옵니다.
         var imageFiles = Directory.GetFiles(imagesFolder);
         int index = 1;
 
@@ -445,22 +443,22 @@ class Program
             string imageFileNameWithoutExtension = Path.GetFileNameWithoutExtension(imageFilePath);
             string imageExtension = Path.GetExtension(imageFilePath);
 
-            // labels 폴더에서 동일한 이름의 라벨 파일을 찾습니다 (확장자 무시).
             var matchingLabelFiles = Directory.GetFiles(labelsFolder, imageFileNameWithoutExtension + ".*");
 
             if (matchingLabelFiles.Length > 0)
             {
-                string labelFilePath = matchingLabelFiles[0]; // 매칭되는 첫 번째 라벨 파일 사용
+                string labelFilePath = matchingLabelFiles[0];
                 string labelExtension = Path.GetExtension(labelFilePath);
 
-                // 새로운 파일명 생성 (예: 00001.jpg, 00001.txt)
+                // Compute SHA1 hash for the image
+                string sha1Hash = GetFileHash(imageFilePath);
                 string newFileName;
                 string newImageFilePath;
                 string newLabelFilePath;
 
                 do
                 {
-                    newFileName = index.ToString("D5"); // D5는 5자리로 패딩
+                    newFileName = $"{index:D5}_{sha1Hash}";
                     newImageFilePath = Path.Combine(imagesFolder, newFileName + imageExtension);
                     newLabelFilePath = Path.Combine(labelsFolder, newFileName + labelExtension);
                     index++;
@@ -469,25 +467,74 @@ class Program
 
                 try
                 {
-                    // 이미지 파일명 변경
+                    // Rename image file
                     File.Move(imageFilePath, newImageFilePath);
-                    Console.WriteLine($"이미지 파일명 변경: {imageFilePath} -> {newImageFilePath}");
+                    Console.WriteLine($"Image renamed: {imageFilePath} -> {newImageFilePath}");
 
-                    // 라벨 파일명 변경
+                    // Rename label file
                     File.Move(labelFilePath, newLabelFilePath);
-                    Console.WriteLine($"라벨 파일명 변경: {labelFilePath} -> {newLabelFilePath}");
+                    Console.WriteLine($"Label renamed: {labelFilePath} -> {newLabelFilePath}");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"파일명 변경 중 오류 발생: {ex.Message}");
+                    Console.WriteLine($"Error renaming files: {ex.Message}");
                 }
             }
             else
             {
-                Console.WriteLine($"매칭되는 라벨 파일이 없습니다: {imageFilePath}");
+                Console.WriteLine($"No matching label file found for: {imageFilePath}");
             }
         }
-    }   
+    }
+    static void SortFilesToMatch(string labelsFolder, string imagesFolder)
+    {
+        // Get all image files in the images folder
+        var imageFiles = Directory.GetFiles(imagesFolder);
+        int index = 1;
+
+        foreach (var imageFilePath in imageFiles)
+        {
+            string imageFileNameWithoutExtension = Path.GetFileNameWithoutExtension(imageFilePath);
+            string imageExtension = Path.GetExtension(imageFilePath);
+
+            // Find matching label files in the labels folder (ignore extension)
+            var matchingLabelFiles = Directory.GetFiles(labelsFolder, imageFileNameWithoutExtension + ".*");
+
+            if (matchingLabelFiles.Length > 0)
+            {
+                string labelFilePath = matchingLabelFiles[0]; // Use the first matching label file
+                string labelExtension = Path.GetExtension(labelFilePath);
+
+                // Compute SHA1 hash for the image
+                string sha1Hash = GetFileHash(imageFilePath);
+                string newFileName = $"{index:D5}_{sha1Hash}"; // Format as "00001_sha1"
+                string newImageFilePath = Path.Combine(imagesFolder, newFileName + imageExtension);
+                string newLabelFilePath = Path.Combine(labelsFolder, newFileName + labelExtension);
+
+                try
+                {
+                    // Rename image file
+                    File.Move(imageFilePath, newImageFilePath);
+                    Console.WriteLine($"Image renamed: {imageFilePath} -> {newImageFilePath}");
+
+                    // Rename label file
+                    File.Move(labelFilePath, newLabelFilePath);
+                    Console.WriteLine($"Label renamed: {labelFilePath} -> {newLabelFilePath}");
+
+                    // Increment index only if renaming succeeds
+                    index++;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error renaming files: {ex.Message}");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"No matching label file found for: {imageFilePath}");
+            }
+        }
+    }
 
     // 이미지와 라벨 파일의 중복을 찾아 제거하는 함수
     static void RemoveDuplicateImagesAndLabels(string labelsFolder, string imagesFolder)
